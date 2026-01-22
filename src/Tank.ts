@@ -30,7 +30,7 @@ export class Tank extends Phaser.GameObjects.Container {
         this.add(this.chassis);
 
         // Create turret sprite (positioned at the center-top of chassis)
-        this.turret = scene.add.sprite(0, -TankConfig.TANK_HEIGHT / 2, this.turretKey);
+        this.turret = scene.add.sprite(0, -3, this.turretKey);
         this.turret.setOrigin(0.5, 1); // Pivot at bottom center
         this.add(this.turret);
 
@@ -47,49 +47,77 @@ export class Tank extends Phaser.GameObjects.Container {
     }
 
     private generateTextures(scene: Phaser.Scene, color: number): void {
-        // Generate chassis texture with treads and details
-        if (!scene.textures.exists(this.chassisKey)) {
-            const chassisGraphics = scene.make.graphics({ x: 0, y: 0 }, false);
+    const colorObj = Phaser.Display.Color.IntegerToColor(color);
+    const r = colorObj.red;
+    const g = colorObj.green;
+    const b = colorObj.blue;
 
-            // Main chassis body (darker green)
-            chassisGraphics.fillStyle(color * 0.7, 1);
-            chassisGraphics.fillRect(0, 0, TankConfig.TANK_WIDTH, TankConfig.TANK_HEIGHT);
+    // Adjusted color tiers
+    const brightColor = Phaser.Display.Color.GetColor(Math.min(255, r + 80), Math.min(255, g + 80), Math.min(255, b + 80));
+    // "Less dark" - changed multiplier from 0.4 to 0.7
+    const mediumDarkColor = Phaser.Display.Color.GetColor(r * 0.7, g * 0.7, b * 0.7);
 
-            // Top hatch detail (lighter green)
-            chassisGraphics.fillStyle(color * 0.9, 1);
-            chassisGraphics.fillRect(8, 2, 8, 6);
+    if (!scene.textures.exists(this.chassisKey)) {
+        const graphics = scene.make.graphics({ x: 0, y: 0 }, false);
+        const centerX = 16;
+        
+        // --- 1. BOTTOM TRAPEZIUM (Upside Down, Medium Dark) ---
+        const trackTopWidth = 28;
+        const trackBottomWidth = 20;
+        const trackHeight = 5;
+        const trackY = 8;
 
-            // Treads (bottom of chassis) - small circles/rectangles
-            chassisGraphics.fillStyle(color * 0.5, 1);
-            // Left tread segments
-            for (let i = 0; i < 5; i++) {
-                chassisGraphics.fillRect(i * 5, TankConfig.TANK_HEIGHT - 2, 3, 2);
-            }
-            // Right tread segments
-            for (let i = 0; i < 5; i++) {
-                chassisGraphics.fillRect(i * 5, TankConfig.TANK_HEIGHT - 4, 3, 2);
-            }
+        graphics.fillStyle(mediumDarkColor, 1);
+        const trackPoints = [
+            { x: centerX - trackTopWidth / 2, y: trackY },
+            { x: centerX + trackTopWidth / 2, y: trackY },
+            { x: centerX + trackBottomWidth / 2, y: trackY + trackHeight },
+            { x: centerX - trackBottomWidth / 2, y: trackY + trackHeight }
+        ];
+        graphics.fillPoints(trackPoints, true);
 
-            chassisGraphics.generateTexture(this.chassisKey, TankConfig.TANK_WIDTH, TankConfig.TANK_HEIGHT);
-            chassisGraphics.destroy();
-        }
+        // --- 2. THE WHEELS (Small circles, same color as Upper Trapezium) ---
+        graphics.fillStyle(brightColor, 1);
+        const wheelY = trackY + (trackHeight / 2);
+        const wheelRadius = 3; // Made smaller
+        graphics.fillCircle(centerX - 9, wheelY, wheelRadius);
+        graphics.fillCircle(centerX - 4.5, wheelY, wheelRadius);
+        graphics.fillCircle(centerX, wheelY, wheelRadius);
+        graphics.fillCircle(centerX + 4.5, wheelY, wheelRadius);
+        graphics.fillCircle(centerX + 9, wheelY, wheelRadius);
 
-        // Generate turret texture with muzzle
-        if (!scene.textures.exists(this.turretKey)) {
-            const turretGraphics = scene.make.graphics({ x: 0, y: 0 }, false);
+        // --- 3. MIDDLE/UPPER TRAPEZIUM (Small, Bright) ---
+        const hullBottomWidth = 16;
+        const hullTopWidth = hullBottomWidth * 0.75; 
+        const hullHeight = 4;
+        const hullY = trackY - hullHeight;
 
-            // Main barrel (lighter green)
-            turretGraphics.fillStyle(color * 0.9, 1);
-            turretGraphics.fillRect(0, 0, 4, TankConfig.TURRET_LENGTH - 3);
+        graphics.fillStyle(brightColor, 1);
+        const hullPoints = [
+            { x: centerX - hullTopWidth / 2, y: hullY },
+            { x: centerX + hullTopWidth / 2, y: hullY },
+            { x: centerX + hullBottomWidth / 2, y: hullY + hullHeight },
+            { x: centerX - hullBottomWidth / 2, y: hullY + hullHeight }
+        ];
+        graphics.fillPoints(hullPoints, true);
 
-            // Muzzle (thicker end)
-            turretGraphics.fillStyle(color * 0.8, 1);
-            turretGraphics.fillRect(-1, TankConfig.TURRET_LENGTH - 3, 6, 3);
-
-            turretGraphics.generateTexture(this.turretKey, 6, TankConfig.TURRET_LENGTH);
-            turretGraphics.destroy();
-        }
+        graphics.generateTexture(this.chassisKey, 32, 20);
+        graphics.destroy();
     }
+
+    // --- 4. TURRET (Needle Barrel) ---
+    if (!scene.textures.exists(this.turretKey)) {
+        const graphics = scene.make.graphics({ x: 0, y: 0 }, false);
+        // Clean needle barrel
+        graphics.fillStyle(0x333333, 1);
+        graphics.fillRect(4, 0, 3, 12); 
+        graphics.fillStyle(0xeeeeee, 1);
+        graphics.fillRect(5, 0, 1, 12); 
+
+        graphics.generateTexture(this.turretKey, 12, 12);
+        graphics.destroy();
+    }
+}
 
     setTurretAngle(angle: number): void {
         // Store the absolute turret angle
