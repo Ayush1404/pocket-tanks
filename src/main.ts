@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GameConfig } from './constants';
 import { Terrain } from './Terrain';
 import { Projectile } from './Projectile';
+import { Tank } from './Tank';
 
 class GameScene extends Phaser.Scene {
     private terrain!: Terrain;
@@ -10,6 +11,7 @@ class GameScene extends Phaser.Scene {
     private terrainTexture!: Phaser.Textures.CanvasTexture;
     private terrainImage!: Phaser.GameObjects.Image;
     private explosionEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
+    private tank!: Tank;
 
     constructor() {
         super('GameScene');
@@ -57,10 +59,20 @@ class GameScene extends Phaser.Scene {
 
         this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
             const radius = pointer.event.shiftKey ? 60 : GameConfig.EXPLOSION_RADIUS;
-            const vX = pointer.x - this.tank.x;
-            const vY = pointer.y - this.tank.y;
+            const turretTip = this.tank.getTurretTip();
 
-            const p = new Projectile(this, this.tank.x, this.tank.y, vX, vY, radius, this.terrain,
+            // Calculate velocity vector based on turret tip position relative to tank center
+            // This gives us the actual direction the turret is visually pointing
+            const directionX = turretTip.x - this.tank.x;
+            const directionY = turretTip.y - this.tank.y;
+
+            // Normalize and scale to projectile speed
+            const length = Math.sqrt(directionX * directionX + directionY * directionY);
+            const speed = 500;
+            const vX = (directionX / length) * speed;
+            const vY = (directionY / length) * speed;
+
+            const p = new Projectile(this, turretTip.x, turretTip.y, vX, vY, radius, this.terrain,
                 (x, y, r) => this.handleExplosion(x, y, r)
             );
             this.projectiles.add(p);
@@ -68,6 +80,9 @@ class GameScene extends Phaser.Scene {
     }
 
     update(): void {
+        // Update tank
+        this.tank.update();
+
         if (this.terrain.isSettling) {
             this.terrain.updateSettling();
             this.updateTerrainDisplay();
@@ -104,6 +119,9 @@ class GameScene extends Phaser.Scene {
     }
 
     private handleExplosion(x: number, y: number, radius: number): void {
+        // Award score to tank based on proximity (damage-to-score conversion)
+        this.tank.addScore(x, y, radius);
+
         // Trigger VFX before carving
         this.playExplosionVFX(x, y, radius);
 
